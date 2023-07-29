@@ -3,14 +3,17 @@ import "@/styles/globals.css";
 
 import { getDefaultWallets, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { configureChains, createConfig, WagmiConfig } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { polygonMumbai } from "wagmi/chains";
 import { publicProvider } from "wagmi/providers/public";
 
-const { chains, publicClient } = configureChains([sepolia], [publicProvider()]);
+const { chains, publicClient } = configureChains(
+  [polygonMumbai],
+  [publicProvider()]
+);
 
 const { connectors } = getDefaultWallets({
-  appName: "CryptoDevs DAO",
-  projectId: "ADD_YOUR_PROJECT_ID_HERE",
+  appName: "RandomWinnerGame",
+  projectId: "cc792e09034ec0d1882da2fd0101e1d2",
   chains,
 });
 
