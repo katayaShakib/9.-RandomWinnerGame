@@ -3,8 +3,33 @@ import "@/styles/globals.css";
 
 import { getDefaultWallets, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { configureChains, createConfig, WagmiConfig } from "wagmi";
-import { polygonMumbai } from "wagmi/chains";
+/* import { polygonMumbai } from "wagmi/chains"; */
 import { publicProvider } from "wagmi/providers/public";
+
+export const polygonMumbai = {
+  id: 80001,
+  name: "Matic Mumbai",
+  network: "Matic Mumbai",
+  nativeCurrency: {
+    decimals: 18,
+    name: "Mumbai",
+    symbol: "MATIC",
+  },
+  rpcUrls: {
+    public: { http: ["https://rpc-mumbai.maticvigil.com/"] },
+    default: { http: ["https://rpc-mumbai.maticvigil.com/"] },
+  },
+  blockExplorers: {
+    etherscan: {
+      name: "mumbai.polygonscan",
+      url: "https://mumbai.polygonscan.com/",
+    },
+    default: {
+      name: "mumbai.polygonscan",
+      url: "https://mumbai.polygonscan.com/",
+    },
+  },
+};
 
 const { chains, publicClient } = configureChains(
   [polygonMumbai],
