@@ -2,7 +2,7 @@ import { RWG_abi, RWG_contract_address } from "../constants";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Head from "next/head";
 import React, { useEffect, useState } from "react";
-import { formatEther } from "viem/utils";
+import { formatEther, parseEther } from "viem/utils";
 import { useAccount, useBalance, useContractRead } from "wagmi";
 import { readContract, waitForTransaction, writeContract } from "wagmi/actions";
 import { FETCH_CREATED_GAME } from "../queries";
@@ -25,23 +25,26 @@ export default function Home() {
   // State variable to show loading state when waiting for a transaction to go through
   const [loading, setLoading] = useState(false);
 
-  // Checks if a game started or not
-  /* const [gameStarted, setGameStarted] = useState(false); */
-  // Players that joined the game
-  const [players, setPlayers] = useState([]);
-  // Winner of the game
-  const [winner, setWinner] = useState();
   // Keep a track of all the logs for a given game
   const [logs, setLogs] = useState([]);
-  // Create a reference to the Web3 Modal (used for connecting to Metamask) which persists as long as the page is open
+
+  // game
+  const [game, setGame] = useState([]);
+
+  // entryFee is the ether required to enter a game
+  const [entryFee, setEntryFee] = useState(0);
+  // maxPlayers is the max number of players that can play the game
+  const [maxPlayers, setMaxPlayers] = useState(0);
 
   // This is used to force react to re render the page when we want to
   // in our case we will use force update to show new logs
   const forceUpdate = React.useReducer(() => ({}), {})[1];
 
-  // Fetch the balance of the RWG
-  const RWGBalance = useBalance({
+  // Fetch the owner of the contract
+  const owner = useContractRead({
+    abi: RWG_abi,
     address: RWG_contract_address,
+    functionName: "owner",
   });
 
   // Fetch the state of gameStarted
@@ -51,38 +54,16 @@ export default function Home() {
     functionName: "gameStarted",
   });
 
-  // Function to
-  /* async function checkIfGameStarted() {
-    setLoading(true);
-
-    try {
-      const _gamestarted = await readContract({
-        address: RWG_contract_address,
-        abi: RWG_abi,
-        functionName: "gameStarted",
-      });
-
-      await waitForTransaction(tx);
-      setGameStarted(_gamestarted.data);
-    } catch (error) {
-      console.error(error);
-      window.alert(error);
-    }
-    setLoading(false);
-  } */
-
   // Function to make a createProposal transaction in the DAO
-  async function startGame(_maxPlayers, _entryFee) {
+  async function startGame() {
     setLoading(true);
-
     try {
       const tx = await writeContract({
         address: RWG_contract_address,
         abi: RWG_abi,
         functionName: "startGame",
-        args: [_maxPlayers, _entryFee],
+        args: [maxPlayers, entryFee],
       });
-
       await waitForTransaction(tx);
     } catch (error) {
       console.error(error);
@@ -92,17 +73,17 @@ export default function Home() {
   }
 
   // Function to make a createProposal transaction in the DAO
-  async function joinGame(_entryFee) {
+  async function joinGame() {
     setLoading(true);
-
     try {
+      const _enteryFee = game.entryFee / 10**18;
       const tx = await writeContract({
         address: RWG_contract_address,
         abi: RWG_abi,
         functionName: "joinGame",
-        args: [_entryFee],
+        args: [],
+        value: parseEther(_enteryFee.toString()),
       });
-
       await waitForTransaction(tx);
     } catch (error) {
       console.error(error);
@@ -111,61 +92,12 @@ export default function Home() {
     setLoading(false);
   }
 
-  // Function to fetch a proposal by it's ID
-  async function fetchProposalById(id) {
-    try {
-      const proposal = await readContract({
-        address: CryptoDevsDAOAddress,
-        abi: CryptoDevsDAOABI,
-        functionName: "proposals",
-        args: [id],
-      });
-
-      const [nftTokenId, deadline, yayVotes, nayVotes, executed] = proposal;
-
-      const parsedProposal = {
-        proposalId: id,
-        nftTokenId: nftTokenId.toString(),
-        deadline: new Date(parseInt(deadline.toString()) * 1000),
-        yayVotes: yayVotes.toString(),
-        nayVotes: nayVotes.toString(),
-        executed: Boolean(executed),
-      };
-
-      return parsedProposal;
-    } catch (error) {
-      console.error(error);
-      window.alert(error);
-    }
-  }
-
-  // Function to fetch all proposals in the DAO
-  async function fetchAllProposals() {
+  const fetchLastGameData = async () => {
     setLoading(true);
     try {
-      const proposals = [];
-
-      for (let i = 0; i < numOfProposalsInDAO.data; i++) {
-        const proposal = await fetchProposalById(i);
-        proposals.push(proposal);
-      }
-
-      setProposals(proposals);
-      setLoading(false);
-
-      return proposals;
-    } catch (error) {
-      console.error(error);
-      window.alert(error);
-    }
-  }
-
-  const fetchGameData = async () => {
-    try {
-      // read the gameStarted boolean from the contract
-
       const _gameArray = await subgraphQuery(FETCH_CREATED_GAME());
       const _game = _gameArray.games[0];
+      setGame(_game);
       let _logs = [];
       // Initialize the logs array and query the graph for current gameID
       if (gameStarted) {
@@ -178,19 +110,14 @@ export default function Home() {
             _logs.push(`${player} joined 🏃‍♂️`);
           });
         }
-        /* setEntryFee(BigNumber.from(_game.entryFee));
-        setMaxPlayers(_game.maxPlayers); */
       } else if (!gameStarted && _game.winner) {
         _logs = [
           `Last game has ended with ID: ${_game.id}`,
           `Winner is: ${_game.winner} 🎉 `,
           `Waiting for host to start new game....`,
         ];
-
-        setWinner(_game.winner);
       }
       setLogs(_logs);
-      setPlayers(_game.players);
       forceUpdate();
     } catch (error) {
       console.error(error);
@@ -199,9 +126,9 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    fetchGameData();
-    /*     setInterval(() => {
-      fetchGameData();
+    fetchLastGameData();
+    /* setInterval(() => {
+      fetchLastGameData();
     }, 2000); */
   }, []);
 
@@ -224,7 +151,6 @@ export default function Home() {
             It's a lottery game where a winner is chosen at random and wins the
             entire lottery pool
           </h2>
-          <h3>{RWGBalance.data.value.toString()}</h3>
         </div>
       </div>
     );
@@ -246,6 +172,57 @@ export default function Home() {
                 {log}
               </div>
             ))}
+        </div>
+        <div>Entry fee: {game.entryFee} | {game.entryFee / 10**18} </div>
+        <div>
+          {
+            // Render when the game has started
+            gameStarted ? (
+              game.players && game.players.length === game.maxPlayers ? (
+                <button className={styles.button} disabled>
+                  Choosing winner...
+                </button>
+              ) : (
+                <div>
+                  <button className={styles.button} onClick={() => joinGame()}>
+                    Join Game 🚀
+                  </button>
+                </div>
+              )
+            ) : address &&
+              address.toLowerCase() === owner.data.toLowerCase() ? (
+              <div>
+                <input
+                  type="number"
+                  className={styles.input}
+                  onChange={(e) => {
+                    // The user will enter the value in ether, we will need to convert
+                    // it to WEI using parseEther
+                    setEntryFee(
+                      e.target.value >= 0
+                        ? utils.parseEther(e.target.value.toString())
+                        : 0
+                    );
+                  }}
+                  placeholder="Entry Fee (ETH)"
+                />
+                <input
+                  type="number"
+                  className={styles.input}
+                  onChange={(e) => {
+                    // The user will enter the value for maximum players that can join the game
+                    setMaxPlayers(e.target.value ?? 0);
+                  }}
+                  placeholder="Max players"
+                />
+                <button className={styles.button} onClick={() => startGame()}>
+                  Start Game 🚀
+                </button>
+              </div>
+            ) : (
+              " "
+            )
+          }
         </div>
       </div>
     </div>
