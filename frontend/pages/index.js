@@ -38,7 +38,7 @@ export default function Home() {
 
   // This is used to force react to re render the page when we want to
   // in our case we will use force update to show new logs
-  const forceUpdate = React.useReducer(() => ({}), {})[1];
+  // const forceUpdate = React.useReducer(() => ({}), {})[1];
 
   // Fetch the owner of the contract
   const owner = useContractRead({
@@ -76,7 +76,7 @@ export default function Home() {
   async function joinGame() {
     setLoading(true);
     try {
-      const _enteryFee = game.entryFee / 10**18;
+      const _enteryFee = game.entryFee / 10 ** 18;
       const tx = await writeContract({
         address: RWG_contract_address,
         abi: RWG_abi,
@@ -100,9 +100,9 @@ export default function Home() {
       setGame(_game);
       let _logs = [];
       // Initialize the logs array and query the graph for current gameID
-      if (gameStarted) {
-        _logs = [`Game has started with ID: ${_game.id}`];
-        if (_game.players && _game.players.length > 0) {
+      if (gameStarted.data) {
+        _logs = [`Game has started with ID: ${_game.id, "gamestarted", gameStarted.data}`];
+        if (_game.players && _game.players.length >= 0) {
           _logs.push(
             `${_game.players.length} / ${_game.maxPlayers} already joined 👀 `
           );
@@ -110,15 +110,15 @@ export default function Home() {
             _logs.push(`${player} joined 🏃‍♂️`);
           });
         }
-      } else if (!gameStarted && _game.winner) {
+      } else if (!gameStarted.data && _game.winner) {
         _logs = [
-          `Last game has ended with ID: ${_game.id}`,
+          `Last game has ended with ID: ${_game.id, "gamestarted", gameStarted.data}`,
           `Winner is: ${_game.winner} 🎉 `,
           `Waiting for host to start new game....`,
         ];
       }
       setLogs(_logs);
-      forceUpdate();
+      /* forceUpdate(); */
     } catch (error) {
       console.error(error);
     }
@@ -126,11 +126,14 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
     fetchLastGameData();
     /* setInterval(() => {
       fetchLastGameData();
     }, 2000); */
-  }, []);
+  }, [address, loading]);
 
   if (!isMounted) return null;
 
@@ -173,14 +176,16 @@ export default function Home() {
               </div>
             ))}
         </div>
-        <div>Entry fee: {game.entryFee} | {game.entryFee / 10**18} </div>
+        <div>
+          Entry fee: {game.entryFee} | {game.entryFee / 10 ** 18}{" "}
+        </div>
         <div>
           {
             // Render when the game has started
-            gameStarted ? (
+            gameStarted.data ? (
               game.players && game.players.length === game.maxPlayers ? (
                 <button className={styles.button} disabled>
-                  Choosing winner...
+                  Choosing winner...{gameStarted.data}
                 </button>
               ) : (
                 <div>
@@ -200,7 +205,7 @@ export default function Home() {
                     // it to WEI using parseEther
                     setEntryFee(
                       e.target.value >= 0
-                        ? utils.parseEther(e.target.value.toString())
+                        ? parseEther(e.target.value.toString())
                         : 0
                     );
                   }}
